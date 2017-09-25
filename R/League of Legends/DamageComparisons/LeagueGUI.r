@@ -70,7 +70,8 @@ Damages <- function(Build, Enemy_Info){
   B_CDR_Sc = (0.09+(0.09*svalue(gp2_Level_Slider)))/100
   P_CDR_Sc = (0.28+(0.28*svalue(gp2_Level_Slider)))/100
   Stack = 1
-
+  
+  
   Stats 	<- c()
   for(i in (1:length(Build))){
     for(col in (1:ncol(Data[Build[i],]))){
@@ -145,6 +146,7 @@ Damages <- function(Build, Enemy_Info){
     Thunderlords_Decree	<- DamageBP((10*svalue(gp2_Level_Slider))+Stats[5]*0.30 + Stats[1]*0.10, Damage_Modifier, Magic_Damage_Reduction)
     Total_Damage 	<- Total_Damage + Thunderlords_Decree
   }
+
   DM <- Damage_Modifier
   MDR <- Magic_Damage_Reduction
   ADR <- Attack_Damage_Reduction
