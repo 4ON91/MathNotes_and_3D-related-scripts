@@ -4,18 +4,11 @@
 library(gWidgets)
 library(gWidgetstcltk)
 
-OnWindows = TRUE
 
-if(OnWindows){
-  setwd("//20X/LOL/R")
-  dir = "//20X/LoL/R"
-  lib_dir <- "//20X/LoL/Windows/library" #On Windows
-}else{
-  dir = "/home/tom/LoL/R"
-  lib_dir <- "/usr/lib/R/library" #On Linux 
-}
 
 Stats <- c()
+
+#These two files should be in the same directory as the script
 
 Data <- read.csv("info_gui.csv", header = TRUE, row.names=1, stringsAsFactors=FALSE)
 Data_Saves <- read.csv("ItemSav.csv", header=FALSE, stringsAsFactors=FALSE)
