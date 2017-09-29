@@ -9,10 +9,11 @@ library(gWidgetstcltk)
 Stats <- c()
 
 #These two files should be in the same directory as the script
-
+#info_gui.csv
+#ItemSave.csv
 Data <- read.csv("info_gui.csv", header = TRUE, row.names=1, stringsAsFactors=FALSE)
 Data_Saves <- read.csv("ItemSav.csv", header=FALSE, stringsAsFactors=FALSE)
-
+#####
 Damage_Reduction <- function(Resistance, Penetration_Percent, Penetration_Flat){
   
   Resistance <- Resistance-(Resistance*Penetration_Percent)
