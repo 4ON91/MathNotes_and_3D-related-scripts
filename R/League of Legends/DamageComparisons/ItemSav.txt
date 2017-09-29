@@ -1,0 +1,4 @@
+Rabadons_Deathcap,Void_Staff,Liandrys_Torment,Morellonomicon,Ludens_Echo,Sorcerers_Shoes,Xerath,Magic_Penetration,Ferocity_AP
+Rabadons_Deathcap,Void_Staff,Liandrys_Torment,Abyssal_Mask,Zhonyas_Hourglass,Sorcerers_Shoes,Karthus,Mage_CDR,Cunning
+NONE,NONE,NONE,NONE,NONE,NONE,Annie,Mage,Cunning
+Rabadons_Deathcap,Void_Staff,Liandrys_Torment,Morellonomicon,Ludens_Echo,Sorcerers_Shoes,Xerath,Mage_CDR,Cunning
