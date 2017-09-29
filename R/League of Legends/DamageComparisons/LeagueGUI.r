@@ -8,29 +8,34 @@ OnWindows = TRUE
 
 if(OnWindows){
   setwd("//20X/LOL/R")
+  dir = "//20X/LoL/R"
   lib_dir <- "//20X/LoL/Windows/library" #On Windows
 }else{
+  dir = "/home/tom/LoL/R"
   lib_dir <- "/usr/lib/R/library" #On Linux 
 }
 
-ROUND_VALUE <- 5
+Stats <- c()
+
 Data <- read.csv("info_gui.csv", header = TRUE, row.names=1, stringsAsFactors=FALSE)
+Data_Saves <- read.csv("ItemSav.csv", header=FALSE, stringsAsFactors=FALSE)
 
 Damage_Reduction <- function(Resistance, Penetration_Percent, Penetration_Flat){
-  Resistance <- (Resistance - Resistance*Penetration_Percent) - Penetration_Flat
+  
+  Resistance <- Resistance-(Resistance*Penetration_Percent)
+  Resistance <- Resistance-Penetration_Flat
   if(Resistance > 0){
     Damage_Reduction = 100/(100+Resistance)
   } else{
     Damage_Reduction = 2-(100/(100-(Resistance)))
   }
+  #cat(sprintf("PP: %s\tPF: %s\tDR: %s\t\n\n", Penetration_Percent, Penetration_Flat, Damage_Reduction))
   return(Damage_Reduction)
 }
 Lethality <- function(Level, Lethality){
   return(Lethality * (0.6+0.4*(Level/18)))
 }
-DamageBP <- function(D, B, P){
-  return((D + D*B)*P)
-}
+
 CDR <- function(CD, CDR){
   return(CD - (CD*CDR))
 }
@@ -39,6 +44,7 @@ Damages <- function(Build, Enemy_Info){
   W = svalue(W_Slider)
   E = svalue(E_Slider)
   R = svalue(R_Slider)
+  Level = svalue(gp2_Level_Slider)
   
   R_Sc	 	= (0.1+(0.1*svalue(gp2_Level_Slider)))
   Y_Sc 		= (0.1+(0.1*svalue(gp2_Level_Slider)))
@@ -71,6 +77,8 @@ Damages <- function(Build, Enemy_Info){
   P_CDR_Sc = (0.28+(0.28*svalue(gp2_Level_Slider)))/100
   Stack = 1
   
+  #44FP 0.35PP 100R
+  #726 = 706
   
   Stats 	<- c()
   for(i in (1:length(Build))){
@@ -82,6 +90,7 @@ Damages <- function(Build, Enemy_Info){
   
   Stats <- array(Stats, dim = c(21, length(Stats)/21, 1))
   Magic_Damage_Reduction_Percent <- c(Stats[2,,])
+  
   Attack_Damage_Reduction_Percent <- c(Stats[6,,])
   Stats <- apply(Stats, c(1), sum)
   Stats <- array(Stats, dim = c(21, 1, 1))
@@ -97,12 +106,14 @@ Damages <- function(Build, Enemy_Info){
   Magic_Damage_Reduction_Percent <- 1-(prod(Magic_Damage_Reduction_Percent))
   Stats[2] <- Magic_Damage_Reduction_Percent
   
+  
   Attack_Damage_Reduction_Percent <- Attack_Damage_Reduction_Percent[Attack_Damage_Reduction_Percent != 0]
   Attack_Damage_Reduction_Percent <- 1-(prod(Attack_Damage_Reduction_Percent))
   Stats[6] <- Attack_Damage_Reduction_Percent
   
+  Stats[3] <- ceiling(Stats[3])
   Magic_Damage_Reduction	= Damage_Reduction(Enemy_Info[3], Stats[2], Stats[3])
-  
+  #cat(sprintf("Flat penetration: %s\t Ceiling: %s\n\n", Stats[3], ceiling(Stats[3])))
   Attack_Damage_Reduction	= Damage_Reduction(Enemy_Info[2], Stats[6], Lethality(Enemy_Info[1], Stats[7]))
   
   if(Stats[16] > 0.40){
@@ -111,45 +122,104 @@ Damages <- function(Build, Enemy_Info){
   if("Seraphs_Embrace" %in% Build){
     Stats[1] 		<- Stats[1] + (Stats[12]*0.03)
   }
+  #Stats[1] <- ceiling(Stats[1])
   if("Rabadons_Deathcap" %in% Build){
+    #cat(sprintf("Rabadons Deathcap found in build\nAP: %s\tIncreasedAP: %s\n", Stats[1], Stats[1]+Stats[1]*0.35))
     Stats[1] 		<- Stats[1] + (Stats[1]*0.35)
   }
-  if("Abyssal_Mask" %in% Build){
-    Damage_Modifiers 	<- c(Damage_Modifiers, c(1-0.10))
-  }
+
   
+  #44FP 35PP 100R
+  #632AP 250+537W
+  #787
+  #696
   Stats[10] 	<- Stats[10]+((Stats[10]*Stats[11])/100)
   Stats[20]	<- Stats[20]+((Stats[20]*Stats[19])/100)
   
+  
+  hasAbyssal <- FALSE
+  if("Abyssal_Mask" %in% Build){
+    hasAbyssal <- TRUE
+  }
   Damage_Modifier 	<- 1-(prod(Damage_Modifiers))
   
   CSB <- 2
+  
+  DM <- Damage_Modifier
+  MDR <- Magic_Damage_Reduction
+  ADR <- Attack_Damage_Reduction
+  
+  DamageBP <- function(D, isMagic){
+    B <- DM
+    if(isMagic){
+      P <- MDR
+    }else{
+      P <- ADR
+    }
+    if(hasAbyssal & isMagic){
+      D <- D+D*0.10
+    }
+    return((D+D*B)*P)
+  }
+  
   if("Infinity_Edge" %in% Build){
     CSB <- CSB + 0.5
   }
   if("Ludens_Echo" %in% Build){
-    Ludens_Echo_Damage	<- DamageBP(100+Stats[1]*0.10, Damage_Modifier, Magic_Damage_Reduction)
+    Ludens_Echo_Damage	<- DamageBP(100+Stats[1]*0.10, TRUE)
     Total_Damage 	<- Total_Damage + Ludens_Echo_Damage
   }
   if("Liandrys_Torment" %in% Build){
-    Liandrys_Torment_Damage	<- DamageBP(Enemy_Info[4]*0.04, Damage_Modifier, Magic_Damage_Reduction)
+    Liandrys_Torment_Damage	<- DamageBP(Enemy_Info[4]*0.04, TRUE)
     Total_Damage 		<- Total_Damage + Liandrys_Torment_Damage
   }
   if(TRUE %in% grepl("Ferocity", Build)){
     Keystone = "Deathfire Grasp"
-    #Deathfire_Grasp	<- DamageBP(4+Stats[1]*0.125 + Stats[5]*0.225, Damage_Modifier, Magic_Damage_Reduction)
-    Deathfire_Grasp	<- DamageBP(4+Stats[1]*0.125 + Stats[5]*0.225, Damage_Modifier, Magic_Damage_Reduction)
+    Deathfire_Grasp	<- DamageBP(4+Stats[1]*0.125 + Stats[5]*0.225, TRUE)
     Total_Damage 	<- Total_Damage + Deathfire_Grasp
   }
   if("Cunning" %in% Build){
     Keystone = "Thunderlord's Decree"
-    Thunderlords_Decree	<- DamageBP((10*svalue(gp2_Level_Slider))+Stats[5]*0.30 + Stats[1]*0.10, Damage_Modifier, Magic_Damage_Reduction)
+    Thunderlords_Decree	<- DamageBP((10*svalue(gp2_Level_Slider))+Stats[5]*0.30 + Stats[1]*0.10, TRUE)
     Total_Damage 	<- Total_Damage + Thunderlords_Decree
   }
 
-  DM <- Damage_Modifier
-  MDR <- Magic_Damage_Reduction
-  ADR <- Attack_Damage_Reduction
+
+
+  
+  Stats[1] <- ceiling(Stats[1])
+  RndUp <- function(){
+    A1 <<- ceiling(A1)
+    A2 <<- ceiling(A2)
+    A3 <<- ceiling(A3)
+    A4 <<- ceiling(A4)
+    #cat(sprintf("A1: %s\tA2: %s\tA3: %s\tA4: %s\n\n", A1, A2, A3, A4))
+  }
+  RndDown <- function(){
+    A1 <<- floor(A1)
+    A2 <<- floor(A2)
+    A3 <<- floor(A3)
+    A4 <<- floor(A4)
+    
+  }
+  #w/Abyssal 681Q 741W 515AP 100R
+  if("Annie" %in% Build){
+    A1_CDR <- CDR(4, Stats[16])
+    A2_CDR <- CDR(8, Stats[16])
+    A3_CDR <- CDR(10, Stats[16])
+    A4_CDR <- CDR(120-(20*R), Stats[16])
+    
+    A1 <- 80+(35*Q) + Stats[1]*0.80
+    A2 <- 75+(45*W) + Stats[1]*0.85
+    A3 <- 20+(10*E) + Stats[1]*0.10
+    A4 <- 150+(125*R) + Stats[1]*0.65
+    #cat(sprintf("A1: %s\tA2: %s\tA3: %s\tA4: %s\n\n", A1, A2, A3, A4))
+    A1 <- DamageBP(A1, TRUE)
+    A2 <- DamageBP(A2, TRUE)
+    A3 <- DamageBP(A3, TRUE)
+    A4 <- DamageBP(A4, TRUE)
+  }
+  #707
   if("Jhin" %in% Build){
     Bonus_AD  <- 0.02
     Bonus_AD  <- Bonus_AD + (Stats[9] %/% 0.1 * 0.04)
@@ -168,10 +238,15 @@ Damages <- function(Build, Enemy_Info){
     A3_CDR    <- CDR(28, Stats[16])
     A4_CDR    <- CDR(120-(15*R), Stats[16])
     
-    A1        <- DamageBP(45+(25*Q) + Stats[1]*0.60 + (Stats[5]*(0.40+0.05*Q)), DM, ADR)
-    A2        <- DamageBP(50+(35*W) + Stats[5]*0.50, DM, ADR)
-    A3        <- DamageBP(20+(60*E) + Stats[1]*1.0 + Stats[5]*1.2, DM, MDR)
-    A4        <- DamageBP(50+(65*R) + Stats[5]*0.2, DM, ADR)
+    A1        <- 45+(25*Q) + Stats[1]*0.60 + (Stats[5]*(0.40+0.05*Q))
+    A2        <- 50+(35*W) + Stats[5]*0.50
+    A3        <- 20+(60*E) + Stats[1]*1.0 + Stats[5]*1.2
+    A4        <- 50+(65*R) + Stats[5]*0.2
+    
+    A1 <- DamageBP(A1, FALSE)
+    A2 <- DamageBP(A2, FALSE)
+    A3 <- DamageBP(A3, TRUE)
+    A4 <- DamageBP(A4, FALSE)
   }
   if("Xerath" %in% Build){
     A1_CDR		<- CDR(9-(1*Q), Stats[16])
@@ -179,15 +254,22 @@ Damages <- function(Build, Enemy_Info){
     A3_CDR		<- CDR(13-(0.5*E), Stats[16])
     A4_CDR		<- CDR(130-(15*R), Stats[16])
     
+    #A2_Perimeter   	<- 60+(30*W) + (Stats[1]*0.60)
     
-    A1             	<- DamageBP(80+(40*Q) + (Stats[1]*0.75), Damage_Modifier, Magic_Damage_Reduction)
-    A2_Perimeter   	<- DamageBP(60+(30*W) + (Stats[1]*0.60), Damage_Modifier, Magic_Damage_Reduction)
-    A2      		<- DamageBP(90+(45*W) + (Stats[1]*0.90), Damage_Modifier, Magic_Damage_Reduction)
-    A3             	<- DamageBP(80+(30*E) + (Stats[1]*0.45), Damage_Modifier, Magic_Damage_Reduction)
-    A4     		<- DamageBP(200+(40*R)+ (Stats[1]*0.43), Damage_Modifier, Magic_Damage_Reduction)
-    A4_Multiple   	<- A4*5
+    A1 <- 80+(40*Q) + (Stats[1]*0.75)
+    A2 <- 90+(45*W) + (Stats[1]*0.90)
+    A3 <- 80+(30*E) + (Stats[1]*0.45)
+    A4 <- 200+(40*R)+ (Stats[1]*0.43)
+    
+    
+    cat(sprintf("Xerath\n\tAP: %s\tA1: %s\tA2: %s\tA3: %s\tA4: %s\n\n", Stats[1], A1, A2, A3, A4))
+    A1 <- DamageBP(A1, TRUE)
+    A2 <- DamageBP(A2, TRUE)
+    A3 <- DamageBP(A3, TRUE)
+    A4 <- DamageBP(A4, TRUE)
     
   }
+  #758 = 711
   
   if("Karthus" %in% Build){
     A1_CDR		<- CDR(1, Stats[16])
@@ -195,12 +277,16 @@ Damages <- function(Build, Enemy_Info){
     A3_CDR		<- 1
     A4_CDR		<- CDR(200-(20*R), Stats[16])
     
-    A1			<- DamageBP( 40+(20*Q)+Stats[1]*0.30, 	Damage_Modifier, Magic_Damage_Reduction)
-    A2			<- DamageBP( 0, 			Damage_Modifier, Magic_Damage_Reduction)
-    A3			<- DamageBP( 30+(20*E)+Stats[1]*0.20, 	Damage_Modifier, Magic_Damage_Reduction)
-    A4			<- DamageBP( 250+(150*R)+Stats[1]*0.60, Damage_Modifier, Magic_Damage_Reduction)
+    A1			<- (40+(20*Q)+Stats[1]*0.30)*2
+    A2			<- 0
+    A3			<- 30+(20*E)+Stats[1]*0.20
+    A4			<- 250+(150*R)+Stats[1]*0.60
+    
+    A1 <- DamageBP(A1, TRUE)
+    A2 <- DamageBP(A2, TRUE)
+    A3 <- DamageBP(A3, TRUE)
+    A4 <- DamageBP(A4, TRUE)
   }
-  
   if(Q == -1){
     A1 = 0
   }
@@ -214,8 +300,8 @@ Damages <- function(Build, Enemy_Info){
     A4 = 0
   }
   
-  Attack_Speed  <- 
-    Basic_Damage	<- Total_Damage + A1 + A2 + A3
+  
+  Basic_Damage	<- Total_Damage + A1 + A2 + A3
   Total_Combo		<- Total_Damage + (A1 + A2 + A3 + A4)
   
   A1_DPS		<- A1/A1_CDR
@@ -229,69 +315,20 @@ Damages <- function(Build, Enemy_Info){
     CSB <- CSB - 0.25
     AS <- Stats[10]
   }
-  
-  AA <- DamageBP(Stats[5]*CSB, DM, ADR)
+  RndDown()
+  AA <- DamageBP(Stats[5]*CSB, FALSE)
   abilities 		<- c(AA, AS, A1, A1_DPS, A2, A2_DPS, A3, A3_DPS, A4, A4_DPS, Stats[1], Stats[5], Basic_Damage, Damage_Modifier, ADR, MDR, Total_Combo)
   damages 		<- array(c(abilities), dim = c(17, 1, 1))
   return(damages)
 }
 
-Enemy_Info = c(6,100,100,1500)
+Enemy_Info = c(17,100,100,1500)
 Champion = "Xerath"
 
-AP00		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap")
-AP01		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP02		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP03		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP04		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-
-AP05		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP06		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP07		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP08		<- c("Dorans_Ring", "Morellonomicon", "Rabadons_Deathcap", "Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-
-AP1		<- c("Seraphs_Embrace", "Rabadons_Deathcap", "Mejais_Soul_Stealer", 	"Void_Staff", "Liandrys_Torment", "Sorcerers_Shoes")
-AP2		<- c("Seraphs_Embrace", "Rabadons_Deathcap", "Mejais_Soul_Stealer", 	"Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP3		<- c("Seraphs_Embrace", "Rabadons_Deathcap", "Ludens_Echo", "Void_Staff", "Liandrys_Torment", "Sorcerers_Shoes")
-AP4		<- c("Seraphs_Embrace", "Rabadons_Deathcap", "Morellonomicon", "Void_Staff", "Ludens_Echo", "Sorcerers_Shoes")
-AP5		<- c("Seraphs_Embrace", "Rabadons_Deathcap", "Mejais_Soul_Stealer",		"Void_Staff", "Liandrys_Torment", "Ludens_Echo")
-AP6		<- c("Seraphs_Embrace", "Rabadons_Deathcap", "Mejais_Soul_Stealer",	  "Void_Staff", "Ludens_Echo", "Morellonomicon")
-AP7		<- c("Rabadons_Deathcap", "Liandrys_Torment", "Ludens_Echo", "Sorcerers_Shoes", "Morellonomicon", "Void_Staff")
-AP8		<- c("Rabadons_Deathcap", "Liandrys_Torment", "Ludens_Echo", "Sorcerers_Shoes", "Morellonomicon", "Banshees_Veil")
-
-AD0		<- c("Long_Sword")
-AD1		<- c("Lord_Dominiks_Regards", "Essence_Reaver", "Youmuus_Ghostblade", "Berserkers_Greaves", "Infinity_Edge", "Phantom_Dancer")
-AD2		<- c("Lord_Dominiks_Regards", "Essence_Reaver", "Youmuus_Ghostblade", "Berserkers_Greaves", "Infinity_Edge", "Phantom_Dancer")
-AD3		<- c("Lord_Dominiks_Regards", "Essence_Reaver", "The_Bloodthirster", "Berserkers_Greaves", "Infinity_Edge", "Phantom_Dancer")
-AD4		<- c("Lord_Dominiks_Regards", "Edge_of_Night", "Youmuus_Ghostblade", "Berserkers_Greaves", "Infinity_Edge", "Phantom_Dancer")
-AD5		<- c("Lord_Dominiks_Regards", "Edge_of_Night", "Youmuus_Ghostblade", "Berserkers_Greaves", "Infinity_Edge", "Essence_Reaver")
-AD6		<- c("Lord_Dominiks_Regards", "Edge_of_Night", "Youmuus_Ghostblade", "Phantom_Dancer", "Infinity_Edge", "Essence_Reaver")
-
-
-Items1		<- AP2
-Items2		<- AP2
-Items3		<- AP2
-Items4		<- AP2
-
-Runes1		<- c("Mage")
-Runes2		<- c("Mage_2")
-Runes3		<- c("Mage_3")
-Runes4		<- c("Mage_Scaling")
-Runes5		<- c("Magic_Penetration")
-Runes6		<- c("Mage_Flat")
-Runes7		<- c("Mage_Farm")
-Runes8		<- c("Full_Scaling")
-
-Masteries1			<- c("Ferocity_AP")
-Masteries2			<- c("Cunning")
-
-
-Build1		<<- c(Items1, Champion, Runes1, Masteries1)
-Build2		<<- c(Items2, Champion, Runes2, Masteries1)
-Build3		<<- c(Items3, Champion, Runes3, Masteries1)
-Build4		<<- c(Items4, Champion, Runes4, Masteries1)
-
-
+Build1		<- as.character(as.vector(Data_Saves[1,]))
+Build2		<- as.character(as.vector(Data_Saves[2,]))
+Build3		<- as.character(as.vector(Data_Saves[3,]))
+Build4		<- as.character(as.vector(Data_Saves[4,]))
 
 win <- gwindow("Table")
 
@@ -326,15 +363,20 @@ gp_Masteries <- gedit(
 )
 
 UpdateItem <- function(ItemInput, ItemSet, ItemNumber){
+  Default <- eval(parse(text = sprintf("Build%s[%s]", ItemSet, ItemNumber)))
   if(TRUE %in% is.na(Data[ItemInput,])){
-    return("INVALID ITEM")
+    return(Default)
   }else{
     CE1 <- sprintf('Build%s[%s] <<- "%s"', ItemSet, ItemNumber, ItemInput)
     CE2 <- sprintf('svalue(gp4_ItemSet%s) <- Build%s', ItemSet, ItemSet)
+    
     eval(parse(text = CE1))
     eval(parse(text = CE2))
+    
+    UpdateItemSav <- array(c(Build1, Build2, Build3, Build4), dim = c(4,9,1))
+    write(UpdateItemSav, sprintf("%s/ItemSav.csv", dir), ncol = 9, sep=",")
     UpdateTable()
-    return("Item Updated")
+    return(ItemInput)
   }
 }
 
@@ -407,7 +449,7 @@ gp2_Level_Slider <- gslider(
   container=gp2_Stats,
   handler = function(h, ...)
   {
-    UpdateTable()
+    #UpdateTable()
     svalue(gp2_Level) <- as.character(svalue(gp2_Level_Slider))
   }
 )
@@ -455,9 +497,9 @@ E_Slider <- gslider(
 R_Label <- glabel("R", container = gp2_Stats)
 R_Slider <- gslider(
   from = -1, 
-  to = 4, 
+  to = 2, 
   by = 1, 
-  value = 4, 
+  value = 2, 
   container=gp2_Stats,
   handler = function(h, ...)
   {
@@ -467,10 +509,10 @@ R_Slider <- gslider(
 )
 
 UpdateStats <- function(){
-  a1 <<- Damages(Build1, Enemy_Info)
-  a2 <<- Damages(Build2, Enemy_Info)
-  a3 <<- Damages(Build3, Enemy_Info)
-  a4 <<- Damages(Build4, Enemy_Info)
+  a1 <- Damages(Build1, Enemy_Info)
+  a2 <- Damages(Build2, Enemy_Info)
+  a3 <- Damages(Build3, Enemy_Info)
+  a4 <- Damages(Build4, Enemy_Info)
   
   
   #cat(sprintf("a1: %s\na2: %s\na3: %s\na4: %s\n\n\n", a1, a2, a3, a4))
@@ -482,6 +524,7 @@ UpdateStats <- function(){
   column.names 		<- c(as.character(1:col.width))
   matrix.names 		<- c("Main")
   Comparisons <- array(Comparisons, dim = c(row.height, col.width, 1), dimnames = list(row.names, column.names, matrix.names))
+  
   return(Comparisons)
 }
 UpdateTable <- function(){
