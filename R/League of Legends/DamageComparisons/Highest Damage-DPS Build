@@ -1,0 +1,391 @@
+ParseData <- function(csv){
+  for(row in 1:nrow(csv)){
+    for(col in 1:ncol(csv)){
+      csv[row:row, col] <- eval(parse(text = csv[row:row, col]))
+    }
+  }
+  return(csv)
+}
+Global_Variables <- function(){
+  Level <<- 18
+  Q <<- 4
+  W <<- 4
+  E <<- 4
+  R <<- 2
+  
+  R_Sc	 	<<- 0.1 +(0.1*Level)
+  Y_Sc 		<<- 0.1 +(0.1*Level)
+  B_Sc 		<<- 0.17+(0.17*Level)
+  P_Sc 		<<- 0.43+(0.43*Level)
+  
+  R_AS <<- 0.126
+  Y_AS <<- 0.0076
+  B_AS <<- 0.0064
+  P_AS <<- 0.045
+  
+  R_Let <<- 1.6
+  P_Let <<- 3.2
+  
+  R_ASc <<- 0.13+(0.13*Level)
+  Y_ASc <<- 0.06+(0.06*Level)
+  B_ASc <<- 0.04+(0.04*Level)
+  P_ASc <<- 0.25+(0.25*Level)
+  
+  
+  R_AD    <<- 0.95
+  Y_AD    <<- 0.43
+  B_AD    <<- 0.28
+  P_AD    <<- 2.25
+  
+  R_AP		<<- 0.59
+  Y_AP 		<<- 0.59
+  B_AP		<<- 1.19
+  P_AP		<<- 4.95
+  
+  R_APFP 	<<- 0.87
+  B_APFP 	<<- 0.63
+  P_APFP 	<<- 2.01
+  
+  B_CDR_Sc <<- (0.0009+(0.09*Level))
+  P_CDR_Sc <<- (0.0028+(0.28*Level))
+  
+  Stack <<- 1
+  
+  Items <<- ParseData(read.csv("info_gui.csv", header = TRUE, row.names=1, stringsAsFactors=FALSE))
+  ComboList <<- read.csv("ADItems.csv", header=TRUE, stringsAsFactors = FALSE)
+  sapply(ComboList, class)
+}
+Global_Variables()
+
+Champion <- "Xerath"
+#It's recommended to enter in mandatory items to reduce computation time.
+Mandatory_Items <- c("Infinity_Edge", "Lord_Dominiks_Regards")
+Excluded_Items <- c("Guinsoos_Rageblade", "The_Black_Cleaver")
+
+Masteries <- "Ferocity_AD"
+Runes <- "AD_Flat"
+Enemy_Info = c(1,45,45,500)
+
+Damages <- function(Build, ...){
+  Build <- c(Build, Mandatory_Items)
+  if(TRUE %in% duplicated(Build) | TRUE %in% (Excluded_Items %in% Build)){
+    return(c(0, "NONE", 0, 0, 0, 0, 0))
+  }
+  ItemSet <- sprintf(
+    "%s %s %s %s %s %s",
+    Build[1],Build[2],Build[3],
+    Build[4],Build[5],Build[6]
+  )
+  Build <- c(Champion, Build, Masteries, Runes)
+  GetArray <- function(Build){
+    Stats <- c()
+    for(i in (1:length(Build))){
+      Stats <- c(Stats, as.numeric(as.vector(Items[Build[i],])))
+    }
+    Stats <- array(Stats, dim = c(21, 9, 1))
+    
+    MagPen_P <- c(Stats[2,,])
+    ArmorPen_P <- c(Stats[6,,])
+    
+    Stats <- apply(Stats, c(1), sum)
+    Stats <- array(Stats, dim = c(21, 1, 1))
+    
+    if("Wits_End" %in% Build){
+      Stats[3] <- Stats[3] + 25
+    }
+    if("Karthus" %in% Build){
+      MagPen_P <- c(MagPen_P, c(1-0.15))
+    }
+    
+    Stats[2] <- 1-(prod(MagPen_P[MagPen_P!=0]))
+    Stats[6] <- 1-(prod(ArmorPen_P[ArmorPen_P!=0]))
+    Stats[3] <- ceiling(Stats[3])
+
+    if(Stats[16] > 0.40){
+      Stats[16] <- 0.4
+    }
+    if("Seraphs_Embrace" %in% Build){
+      Stats[1] 		<- Stats[1] + (Stats[12]*0.03)
+    }
+    if("Rabadons_Deathcap" %in% Build){
+      Stats[1] 		<- Stats[1] + (Stats[1]*0.35)
+    }
+    Stats[1] <- ceiling(Stats[1])
+    return(Stats)
+  }
+  Stats <- GetArray(Build)
+
+  Damage_Modifiers 	<- c((1-0.03), (1-.02), (1-0.02))
+  Total_Damage		<- 0
+  
+  Damage_Reduction <- function(R, PP, PF){
+    R <- (R-(R*PP))-PF
+    if(R > 0){
+      DR = 100/(100+R)
+    } else{
+      DR = 2-(100/(100-(R)))
+    }
+    return(DR)
+  }
+  Lethality <- function(Level, Lethality){
+    return(Lethality * (0.6+0.4*(Level/18)))
+  }
+  
+  MDR	= Damage_Reduction(Enemy_Info[3], Stats[2], Stats[3])
+  ADR	= Damage_Reduction(Enemy_Info[2], Stats[6], Lethality(Enemy_Info[1], Stats[7]))
+
+  DM 	<- 1-(prod(Damage_Modifiers))
+  CSB <- 2
+  CDR <- function(CD){
+    return(CD - (CD*Stats[16]))
+  }
+  DamageBP <- function(D, flag){
+    if(flag == 0){
+      P <- ADR
+    }
+    if(flag == 1){
+      P <- MDR
+    }
+    if(flag == 2){
+      P <- 1
+    }
+    B <- DM
+    if("Abyssal_Mask" %in% Build & flag == 1){
+      D <- D+D*0.10
+    }
+    return((D+D*B)*P)
+  }
+  
+  hasHextech <- FALSE
+  if("Hextech_GLP800" %in% Build & hasHextech == FALSE){
+    hasHextech <- TRUE
+    Total_Damage <- Total_Damage + DamageBP(100+(6*Level)+Stats[1]*0.35, 1)
+  }
+  if("Hextech_Protobelt01" %in% Build & hasHextech == FALSE){
+    hasHextech <- TRUE
+    Total_Damage <- Total_Damage + DamageBP(75+(5*Level)+Stats[1]*0.25,1)
+  }
+  if("Infinity_Edge" %in% Build){
+    CSB <- CSB + 0.5
+  }
+  if("Liandrys_Torment" %in% Build){
+    Liandrys_Torment_Damage	<- DamageBP(Enemy_Info[4]*0.04, 1)
+    Total_Damage 		<- Total_Damage + Liandrys_Torment_Damage
+  }
+  if("Lich_Bane" %in% Build){
+    Total_Damage <- Total_Damage + DamageBP(Stats[1]*0.5+Stats[5]*0.75, 1)
+  }
+  if("Ludens_Echo" %in% Build){
+    Ludens_Echo_Damage	<- DamageBP(100+Stats[1]*0.10, 1)
+    Total_Damage 	<- Total_Damage + Ludens_Echo_Damage
+  }
+  if(TRUE %in% grepl("Ferocity", Build)){
+    Total_Damage	<- Total_Damage + DamageBP(4+Stats[1]*0.125 + Stats[5]*0.225, 1)
+  }
+  if("Cunning" %in% Build){
+    Total_Damage	<- Total_Damage + DamageBP((10*Level)+Stats[5]*0.30 + Stats[1]*0.10, 1)
+  }
+  
+  AA_DPS <- 0
+  if("Annie" %in% Champion){
+    A1_CDR <- CDR(4)
+    A2_CDR <- CDR(8)
+    A3_CDR <- CDR(10)
+    A4_CDR <- CDR(120-(20*R))
+    A1 <- DamageBP(80+(35*Q) + Stats[1]*0.80, 1)
+    A2 <- DamageBP(75+(45*W) + Stats[1]*0.85, 1)
+    A3 <- DamageBP(20+(10*E) + Stats[1]*0.10, 1)
+    A4 <- DamageBP(150+(125*R) + Stats[1]*0.65, 1)
+  }
+  if("Jhin" %in% Champion){
+    Bonus_AD  <- 0.02
+    Bonus_AD  <- Bonus_AD + (Stats[9] %/% 0.1 * 0.04)
+    Bonus_AD  <- Bonus_AD + (Stats[11] %/% 0.1 * 0.025)
+    for(x in 1:Level){
+      if(x < 11){
+        Bonus_AD <- Bonus_AD + 0.01
+      }else{
+        Bonus_AD <- Bonus_AD + 0.04
+      }
+    }
+    
+    Stats[5]  <- Stats[5] + (Stats[5] * Bonus_AD)
+    A1_CDR    <- CDR(7-(0.5*Q))
+    A2_CDR    <- CDR(14)
+    A3_CDR    <- CDR(28)
+    A4_CDR    <- CDR(120-(15*R))
+    
+    A1 <- DamageBP(45+(25*Q) + Stats[1]*0.60 + (Stats[5]*(0.40+0.05*Q)), 0)
+    A2 <- DamageBP(50+(35*W) + Stats[5]*0.50, 0)
+    A3 <- DamageBP(20+(60*E) + Stats[1]*1.0 + Stats[5]*1.2, 1)
+    A4 <- DamageBP(50+(65*R) + Stats[5]*0.2, 0)
+  }
+  if("Karthus" %in% Champion){
+    A1_CDR		<- CDR(1)
+    A2_CDR		<- CDR(18)
+    A3_CDR		<- 1
+    A4_CDR		<- CDR(200-(20*R))
+    
+    A1			<- DamageBP((40+(20*Q)+Stats[1]*0.30)*2, 1)
+    A2			<- DamageBP(0, 1)
+    A3			<- DamageBP(30+(20*E)+Stats[1]*0.20, 1)
+    A4			<- DamageBP(250+(150*R)+Stats[1]*0.60, 1)
+  }
+  if("Twitch" %in% Champion){
+    TD <- 6
+    for(i in 1:Level){
+      key = 5
+      if(i >= key){
+        TD <- TD + 6
+        key <- key + 4
+      }
+    }
+    
+    Stats[5] <- Stats[5] + 20+(10*R)
+    
+    A1_CDR <- CDR(16)
+    A2_CDR <- CDR(13-1*W)
+    A3_CDR <- CDR(12-1*E)
+    A4_CDR <- CDR(90)
+    A1 <- 0
+    A2 <- 0
+    A3 <- 0
+    A4 <- 0
+    Stats[11] <- Stats[11] + 0.30+(0.05*Q)
+    AA_DPS <- AA_DPS + DamageBP(TD, 2)
+  }
+  if("VelKoz" %in% Champion){
+    Total_Damage <- Total_Damage + DamageBP(33+8*Level+Stats[1]*0.5, 2)
+    A1_CDR <- CDR(7)
+    A2_CDR <- CDR(19-(W*1))
+    A3_CDR <- CDR(16-(E*1))
+    A4_CDR <- CDR(120-(R*20))
+    A1 <- DamageBP(80+40*Q+Stats[1]*0.40,1)
+    A2 <- DamageBP((30+20*W+Stats[1]*0.15)+(45+30*W+Stats[1]*0.25),1)
+    A3 <- DamageBP(70+30*E+Stats[1]*0.30,1)
+    A4 <- DamageBP(40+17.5*R+Stats[1]*0.125,1)*10
+  }
+  if("Xerath" %in% Champion){
+    A1_CDR <- CDR(9-(1*Q))
+    A2_CDR <- CDR(14-(1*W))
+    A3_CDR <- CDR(13-(0.5*E))
+    A4_CDR <- CDR(130-(15*R))
+    A1 <- DamageBP(80+(40*Q) + (Stats[1]*0.75), 1)
+    A2 <- DamageBP(90+(45*W) + (Stats[1]*0.90), 1)
+    A3 <- DamageBP(80+(30*E) + (Stats[1]*0.45), 1)
+    A4 <- DamageBP(200+(40*R)+ (Stats[1]*0.43), 1)*3+(R*1)
+  }
+  
+  if(Q == -1){
+    A1 = 0
+  }
+  if(W == -1){
+    A2 = 0
+  }
+  if(E == -1){
+    A3 = 0
+  }
+  if(R == -1){
+    A4 = 0
+  }
+  
+  A1 <- floor(A1)
+  A2 <- floor(A2)
+  A3 <- floor(A3)
+  A4 <- floor(A4)
+  
+  
+  A1_DPS		<- A1/A1_CDR
+  A2_DPS		<- A2/A2_CDR
+  A3_DPS		<- A3/A3_CDR
+  A4_DPS		<- A4/A4_CDR
+  
+  Stats[10] <- Stats[10]+(Stats[10]*Stats[11])
+  Stats[20]	<- Stats[20]+(Stats[20]*Stats[19])
+  if(Stats[10] > 2.5){
+    Stats[10] = 2.5
+  }
+  AS <- Stats[10]
+  if("Jhin" %in% Build){
+    CSB <- CSB - 0.25
+    AS <- Stats[10]
+  }
+  onhit <- 0
+  if("Wits_End" %in% Build){
+    onhit <- onhit + DamageBP(40,1)
+  }
+  if("Nashors_Tooth" %in% Build){
+    onhit <- onhit + DamageBP(15+Stats[1]*0.15,1)
+  }
+  if("Blade_of_the_Ruined_King" %in% Build){
+    Total_Damage <- Total_Damage + DamageBP(100, 1)
+    onhit <- onhit + DamageBP(Enemy_Info[4]*0.08, 0)
+  }
+  if("Guinsoos_Rageblade" %in% Build){
+    onhit <- onhit + DamageBP(15, 1)
+    if(AS >= 2){
+      onhit <- onhit*2
+    }
+  }
+  if(Stats[9] > 1){
+    Stats[9] = 1
+  }
+  CSC <- Stats[9]
+  
+  #DPSAuto <- DamageBP(Stats[5]*AS, 0)
+  #DPSOnHit <- onhit
+  #AA_DPS <- (CSC*DPSAuto)+(CSC*(CSB*DPSAuto))+DPSOnHit
+  
+  if(CSC > 0){
+    AA <- DamageBP(Stats[5]*2, 0)
+  }
+  AA_DPS <- (AA + onhit)*AS/60
+  
+  Total_Combo <- A1+A2+A3+A4
+  
+  return(c(Total_Combo, ItemSet, AA_DPS, A1, A2, A3, A4))
+}
+CmLi <- combn(ComboList[,1], 6-length(Mandatory_Items), Damages)
+DamDF <- data.frame(
+  Damage <- as.numeric(as.vector(CmLi[1,])),
+  DPS <- as.numeric(as.vector(CmLi[3,])),
+  ItemSet <- as.character(as.vector(CmLi[2,])),
+  A1 <- as.numeric(as.vector(CmLi[4,])),
+  A2 <- as.numeric(as.vector(CmLi[5,])),
+  A3 <- as.numeric(as.vector(CmLi[6,])),
+  A4 <- as.numeric(as.vector(CmLi[7,])),
+  stringsAsFactors = FALSE
+)
+HDV <- function(data){
+  MAX <- which(data == max(data))
+  MAX <- MAX[1]
+  return(MAX)
+}
+
+HDT <- HDV(DamDF$Damage)
+HDPS <- HDV(DamDF$DPS)
+HA1 <- HDV(DamDF$A1)
+HA2 <- HDV(DamDF$A2)
+HA3 <- HDV(DamDF$A3)
+HA4 <- HDV(DamDF$A4)
+
+
+cat(sprintf("Highest total damage: %s\nItem Set: %s\n\n", 
+            DamDF$Damage[HDT], 
+            DamDF$ItemSet[HDT]))
+cat(sprintf("Highest DPS: %s\nItem Set: %s\n\n", 
+            DamDF$DPS[HDPS], 
+            DamDF$ItemSet[HDPS]))
+
+cat(sprintf("Highest A1: %s\nItem Set: %s\n\n", 
+            DamDF$A1[HA1], 
+            DamDF$ItemSet[HA1]))
+cat(sprintf("Highest A2: %s\nItem Set: %s\n\n", 
+            DamDF$A2[HA2], 
+            DamDF$ItemSet[HA2]))
+cat(sprintf("Highest A3: %s\nItem Set: %s\n\n", 
+            DamDF$A3[HA3], 
+            DamDF$ItemSet[HA3]))
+cat(sprintf("Highest A4: %s\nItem Set: %s\n\n", 
+            DamDF$A4[HA4], 
+            DamDF$ItemSet[HA4]))
