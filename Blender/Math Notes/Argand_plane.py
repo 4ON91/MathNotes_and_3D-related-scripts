@@ -19,7 +19,8 @@ from bpy_extras.object_utils import AddObjectHelper, object_data_add
 from mathutils import Vector
 from math import *
 
-#Notes on how to add/subtract and multiply/divide imaginary numbers and convert them to polar and cartesian forms.
+#Notes on how to add/subtract and multiply/divide imaginary numbers and convert them to polar and cartesian forms,
+#and how imaginary numbers are used in rotational math.
 class cpol:
     def __init__(self, a):
         if(type(a)== complex):
