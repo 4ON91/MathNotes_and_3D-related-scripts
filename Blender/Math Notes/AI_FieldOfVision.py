@@ -18,8 +18,7 @@ from bpy_extras.object_utils import AddObjectHelper, object_data_add
 from mathutils import Vector
 from math import acos, atan, cos, sin, sqrt, pi, pow
 import numpy as np
-
-#Notes about vector operations and whatever.
+#
 def add_object(self, context):
     verts = []
     edges = []
