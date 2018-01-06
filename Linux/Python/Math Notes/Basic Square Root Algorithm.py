@@ -1,3 +1,6 @@
+#https://youtu.be/rAuoJCiPiGU
+#based on this youtube video on how to do square roots without a calculator
+
 #Only works with integer values
 def SquareRootAlgorithm(VARIABLE):
     for i in range(0, VARIABLE+1):
