@@ -199,8 +199,10 @@ def polarp(p1,p2):
         if y < 0:
             a = 270
 
-    a = degrees(atan(y/x))
-    if x < 0 and y > 0 or x < 0 and y < 0:
+    a = degrees(atan(y/x))*180/pi
+    if(x > 0 and y > 0):
+        a = a
+    if x < 0:
         a = 180 + a
     if x > 0 and y < 0:
         a = 360 + a
