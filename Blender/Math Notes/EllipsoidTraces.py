@@ -105,13 +105,13 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
         name = "Limit Y",
         precision = 6,
         min = 0,
-        default = 5,)
+        default = 0,)
         
     limit_z = FloatProperty(
         name = "Limit Z",
         precision = 6,
         min = 0,
-        default = 5,)
+        default = 9,)
         
     def execute(self, context):
 
