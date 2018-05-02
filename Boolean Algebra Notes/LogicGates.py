@@ -146,8 +146,6 @@ def ANDList(NumberOfSwitches):
     return(Switch_States)
 
 def RunCircuit(file):
-    os.chdir("\\\\20x\Games\Python\Circuit Emulator")
-
     OP1 = OR(1)
     OP2 = OR(2)
     OP3 = OR(3)
@@ -270,9 +268,6 @@ for line in EmulatedCircuit:
     print(line)
 
 """
-Answers on 834
-Exercise 45
-103
 C * ( (A*B) + (a*B) )
 C * ( (A*b) + a )
 A * ( (B*c) + (b*C) + (a*B) ) * B
