@@ -1,5 +1,3 @@
-import regex as re
-
 RF = '(\d+)(\.\d+)?'
 P  = '\*\*'
 MD = '[\*/]'
@@ -32,20 +30,14 @@ def BODMAS(Equation):
 
 Equation = "(1+(2*3**2)**2-(4*(5/2**2)+1))"
 
-Brackets = re.compile(r'\((%s+?)(?!\()\)'%Ops)
+def SolveBrackets(Eq):
+    while(re.search(r'([()])', Eq)):
+        a = re.search(r'\([\.*/0-9+-]*?\)', Eq)
+        s, e = a.spans()[0]
+        Eq = Eq.replace(Eq[s:e], BODMAS(Eq[s+1:e-1]))
+    return(Eq)
 
-def SolveEquation(Eq):
-    if("(" in Eq or ")" in Eq):
-        for x in range(0, len(Eq)):
-            if( Eq[x] == "(" ):
-                Start = x
-            if( Eq[x] == ")" ):
-                End = x
-                Eq = Eq.replace(Eq[Start:End+1], BODMAS(Eq[Start+1:End]))
-                Eq = SolveEquation(Eq)
-                return(Eq)
-    else:
-        Eq = BODMAS(Eq)
-        return(Eq)
+print("SolveBrackets: ", SolveBrackets(Equation))
 
-print("Br2: ", SolveEquation(Equation))
+
+
