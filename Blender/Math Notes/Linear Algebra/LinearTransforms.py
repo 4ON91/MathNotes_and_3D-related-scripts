@@ -1,14 +1,14 @@
 bl_info = {
-    "name": "Linear Transformation example",
-    "author": "4ON91",
+    "name": "New Object",
+    "author": "Your Name Here",
     "version": (1, 0),
-    "blender": (2, 75, 0),
+    "blender": (2, 80, 0),
     "location": "View3D > Add > Mesh > New Object",
     "description": "Adds a new Mesh Object",
     "warning": "",
-    "wiki_url": "",
+    "doc_url": "",
     "category": "Add Mesh",
-    }
+}
 
 
 import bpy
@@ -86,38 +86,78 @@ def add_object(self, context):
     # mesh.validate(verbose=True)
     object_data_add(context, mesh, operator=self)
 
+"""
+def add_object(self, context):
+    scale_x = self.scale.x
+    scale_y = self.scale.y
+
+    verts = [
+        Vector((-1 * scale_x, 1 * scale_y, 0)),
+        Vector((1 * scale_x, 1 * scale_y, 0)),
+        Vector((1 * scale_x, -1 * scale_y, 0)),
+        Vector((-1 * scale_x, -1 * scale_y, 0)),
+    ]
+
+    edges = []
+    faces = [[0, 1, 2, 3]]
+
+    mesh = bpy.data.meshes.new(name="New Object Mesh")
+    mesh.from_pydata(verts, edges, faces)
+    # useful for development when the mesh may be invalid.
+    # mesh.validate(verbose=True)
+    object_data_add(context, mesh, operator=self)
 
 class OBJECT_OT_add_object(Operator, AddObjectHelper):
-    """Create a new Mesh Object"""
+    #Create a new Mesh Object
+    bl_idname = "mesh.add_object"
+    bl_label = "Add Mesh Object"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    scale: FloatVectorProperty(
+        name="scale",
+        default=(1.0, 1.0, 1.0),
+        subtype='TRANSLATION',
+        description="scaling",
+    )
+
+    def execute(self, context):
+
+        add_object(self, context)
+
+        return {'FINISHED'}
+"""
+class OBJECT_OT_add_object(Operator, AddObjectHelper):
     bl_idname = "mesh.add_object"
     bl_label = "Add Mesh Object"
     bl_options = {'REGISTER', 'UNDO'}
     
-    Joint1 = FloatVectorProperty(
+	
+	#Blender updated its naming conventions. They use a colon instead of a an equals sign now. 
+    Joint1: FloatVectorProperty(
         name = "Joint.001",
         default = (5,45),
         size = 2,
         precision = 6)
     
-    Joint2 = FloatVectorProperty(
+    Joint2: FloatVectorProperty(
         name = "Joint.002",
         default = (4,45),
         size = 2,
         precision = 6)
     
-    Joint3 = FloatVectorProperty(
+    Joint3: FloatVectorProperty(
         name = "Joint.003",
         default = (3,45),
         size = 2,
         precision = 6)
     
-    Joint4 = FloatVectorProperty(
+    Joint4: FloatVectorProperty(
         name = "Joint.004",
         default = (2,45),
         size = 2,
         precision = 6)
 
-    Joint5 = FloatVectorProperty(
+    Joint5:t FloatVectorProperty(
         name = "Joint.005",
         default = (1,45),
         size = 2,
@@ -128,8 +168,6 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
         add_object(self, context)
 
         return {'FINISHED'}
-
-
 # Registration
 
 def add_object_button(self, context):
@@ -139,25 +177,25 @@ def add_object_button(self, context):
         icon='PLUGIN')
 
 
-# This allows you to right click on a button and link to the manual
+# This allows you to right click on a button and link to documentation
 def add_object_manual_map():
-    url_manual_prefix = "https://docs.blender.org/manual/en/dev/"
+    url_manual_prefix = "https://docs.blender.org/manual/en/latest/"
     url_manual_mapping = (
-        ("bpy.ops.mesh.add_object", "editors/3dview/object"),
-        )
+        ("bpy.ops.mesh.add_object", "scene_layout/object/types.html"),
+    )
     return url_manual_prefix, url_manual_mapping
 
 
 def register():
     bpy.utils.register_class(OBJECT_OT_add_object)
     bpy.utils.register_manual_map(add_object_manual_map)
-    bpy.types.INFO_MT_mesh_add.append(add_object_button)
+    bpy.types.VIEW3D_MT_mesh_add.append(add_object_button)
 
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_add_object)
     bpy.utils.unregister_manual_map(add_object_manual_map)
-    bpy.types.INFO_MT_mesh_add.remove(add_object_button)
+    bpy.types.VIEW3D_MT_mesh_add.remove(add_object_button)
 
 
 if __name__ == "__main__":
